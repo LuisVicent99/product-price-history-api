@@ -13,10 +13,8 @@ import io.vertx.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 @ApplicationScoped
@@ -24,14 +22,12 @@ public class PgPriceRepository implements PriceRepository {
 
     private static final String SQLSTATE_EXCLUSION_VIOLATION = "23P01";
     private static final String SQLSTATE_FOREIGN_KEY_VIOLATION = "23503";
+    private static final String SQLSTATE_DEADLOCK_DETECTED = "40P01";
 
     private static final String INSERT =
         "INSERT INTO price (product_id, amount, currency, init_date, end_date) "
             + "VALUES ($1, $2, $3, $4, $5) "
             + "RETURNING id, product_id, amount, currency, init_date, end_date";
-    private static final String SELECT_IN_FORCE_AT =
-        "SELECT id, product_id, amount, currency, init_date, end_date "
-            + "FROM price WHERE product_id = $1 AND validity @> $2::date";
     private static final String SELECT_HISTORY =
         "SELECT id, product_id, amount, currency, init_date, end_date "
             + "FROM price WHERE product_id = $1 ORDER BY init_date";
@@ -44,21 +40,22 @@ public class PgPriceRepository implements PriceRepository {
 
     @Override
     public CompletionStage<Price> insert(long productId, BigDecimal amount, String currency, DateInterval validity) {
+        return attemptInsert(productId, amount, currency, validity, true).toCompletionStage();
+    }
+
+    private Future<Price> attemptInsert(long productId, BigDecimal amount, String currency, DateInterval validity,
+                                        boolean retryOnDeadlock) {
         return pool.preparedQuery(INSERT)
             .execute(Tuple.of(productId, amount, currency, validity.initDate(), validity.endDate()))
             .map(rows -> PriceRowMapper.from(rows.iterator().next()))
-            .recover(error -> Future.failedFuture(translateInsertError(error, productId)))
-            .toCompletionStage();
+            .recover(error -> retryOnDeadlock && isDeadlock(error)
+                ? attemptInsert(productId, amount, currency, validity, false)
+                : Future.failedFuture(translateInsertError(error, productId)));
     }
 
-    @Override
-    public CompletionStage<Optional<Price>> findAt(long productId, LocalDate date) {
-        return pool.preparedQuery(SELECT_IN_FORCE_AT)
-            .execute(Tuple.of(productId, date))
-            .map(rows -> rows.size() == 0
-                ? Optional.<Price>empty()
-                : Optional.of(PriceRowMapper.from(rows.iterator().next())))
-            .toCompletionStage();
+    private static boolean isDeadlock(Throwable error) {
+        return error instanceof PgException pgException
+            && SQLSTATE_DEADLOCK_DETECTED.equals(pgException.getSqlState());
     }
 
     @Override

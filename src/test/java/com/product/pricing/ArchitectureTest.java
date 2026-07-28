@@ -21,7 +21,8 @@ class ArchitectureTest {
                 "com.product.pricing.api..",
                 "com.product.pricing.infrastructure..",
                 "io.vertx..",
-                "jakarta.ws.rs..")
+                "jakarta.ws.rs..",
+                "com.github.benmanes..")
             .check(CLASSES);
     }
 }

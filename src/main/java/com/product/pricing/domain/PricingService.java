@@ -19,10 +19,12 @@ public class PricingService {
 
     private final ProductRepository products;
     private final PriceRepository prices;
+    private final PriceTimelineProvider timelines;
 
-    public PricingService(ProductRepository products, PriceRepository prices) {
+    public PricingService(ProductRepository products, PriceRepository prices, PriceTimelineProvider timelines) {
         this.products = products;
         this.prices = prices;
+        this.timelines = timelines;
     }
 
     public CompletionStage<Product> createProduct(String name, String description) {
@@ -33,15 +35,17 @@ public class PricingService {
                                            LocalDate initDate, LocalDate endDate) {
         DateInterval validity = new DateInterval(initDate, endDate);
         String effectiveCurrency = currency == null || currency.isBlank() ? DEFAULT_CURRENCY : currency;
-        return prices.insert(productId, amount, effectiveCurrency, validity);
+        return prices.insert(productId, amount, effectiveCurrency, validity)
+            .thenApply(inserted -> {
+                timelines.invalidate(productId);
+                return inserted;
+            });
     }
 
     public CompletionStage<Price> priceAt(long productId, LocalDate date) {
-        return prices.findAt(productId, date).thenCompose(found -> found
+        return timelines.timelineOf(productId).thenCompose(timeline -> timeline.findAt(date)
             .<CompletionStage<Price>>map(CompletableFuture::completedStage)
-            .orElseGet(() -> products.exists(productId).thenCompose(exists -> exists
-                ? CompletableFuture.failedStage(new PriceNotFoundException(productId, date))
-                : CompletableFuture.failedStage(new ProductNotFoundException(productId)))));
+            .orElseGet(() -> CompletableFuture.failedStage(new PriceNotFoundException(productId, date))));
     }
 
     public CompletionStage<ProductPriceHistory> history(long productId) {
