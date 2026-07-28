@@ -1,0 +1,95 @@
+package com.product.pricing.domain.model;
+
+import com.product.pricing.domain.error.InvalidDateRangeException;
+import org.junit.jupiter.api.Test;
+
+import java.time.LocalDate;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class DateIntervalTest {
+
+    private static final LocalDate JAN_1 = LocalDate.of(2026, 1, 1);
+    private static final LocalDate JAN_10 = LocalDate.of(2026, 1, 10);
+    private static final LocalDate JAN_11 = LocalDate.of(2026, 1, 11);
+    private static final LocalDate JAN_20 = LocalDate.of(2026, 1, 20);
+
+    @Test
+    void allowsNullEndDateAsOpenEnded() {
+        DateInterval interval = new DateInterval(JAN_1, null);
+        assertTrue(interval.contains(LocalDate.of(2099, 12, 31)));
+    }
+
+    @Test
+    void rejectsMissingInitDate() {
+        assertThrows(InvalidDateRangeException.class, () -> new DateInterval(null, JAN_10));
+    }
+
+    @Test
+    void rejectsInitDateEqualToEndDate() {
+        assertThrows(InvalidDateRangeException.class, () -> new DateInterval(JAN_10, JAN_10));
+    }
+
+    @Test
+    void rejectsInitDateAfterEndDate() {
+        assertThrows(InvalidDateRangeException.class, () -> new DateInterval(JAN_20, JAN_10));
+    }
+
+    @Test
+    void containsIsInclusiveAtBothBoundaries() {
+        DateInterval interval = new DateInterval(JAN_10, JAN_20);
+        assertTrue(interval.contains(JAN_10));
+        assertTrue(interval.contains(JAN_20));
+        assertFalse(interval.contains(JAN_10.minusDays(1)));
+        assertFalse(interval.contains(JAN_20.plusDays(1)));
+    }
+
+    @Test
+    void openEndedContainsFromInitDateOn() {
+        DateInterval interval = new DateInterval(JAN_10, null);
+        assertFalse(interval.contains(JAN_10.minusDays(1)));
+        assertTrue(interval.contains(JAN_10));
+    }
+
+    @Test
+    void intervalsSharingABoundaryDayOverlap() {
+        DateInterval first = new DateInterval(JAN_1, JAN_10);
+        DateInterval second = new DateInterval(JAN_10, JAN_20);
+        assertTrue(first.overlaps(second));
+        assertTrue(second.overlaps(first));
+    }
+
+    @Test
+    void intervalStartingTheDayAfterAnotherEndsDoesNotOverlap() {
+        DateInterval first = new DateInterval(JAN_1, JAN_10);
+        DateInterval second = new DateInterval(JAN_11, JAN_20);
+        assertFalse(first.overlaps(second));
+        assertFalse(second.overlaps(first));
+    }
+
+    @Test
+    void twoOpenEndedIntervalsAlwaysOverlap() {
+        DateInterval first = new DateInterval(JAN_1, null);
+        DateInterval second = new DateInterval(JAN_20, null);
+        assertTrue(first.overlaps(second));
+        assertTrue(second.overlaps(first));
+    }
+
+    @Test
+    void openEndedIntervalOverlapsAnyLaterInterval() {
+        DateInterval open = new DateInterval(JAN_1, null);
+        DateInterval later = new DateInterval(JAN_11, JAN_20);
+        assertTrue(open.overlaps(later));
+        assertTrue(later.overlaps(open));
+    }
+
+    @Test
+    void closedIntervalDoesNotOverlapOpenEndedStartingAfterIt() {
+        DateInterval closed = new DateInterval(JAN_1, JAN_10);
+        DateInterval openAfter = new DateInterval(JAN_11, null);
+        assertFalse(closed.overlaps(openAfter));
+        assertFalse(openAfter.overlaps(closed));
+    }
+}
