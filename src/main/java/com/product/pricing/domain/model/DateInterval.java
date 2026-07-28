@@ -19,9 +19,4 @@ public record DateInterval(LocalDate initDate, LocalDate endDate) {
     public boolean contains(LocalDate date) {
         return !date.isBefore(initDate) && (endDate == null || !date.isAfter(endDate));
     }
-
-    public boolean overlaps(DateInterval other) {
-        return (other.endDate == null || !initDate.isAfter(other.endDate))
-            && (endDate == null || !other.initDate.isAfter(endDate));
-    }
 }

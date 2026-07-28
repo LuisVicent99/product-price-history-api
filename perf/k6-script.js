@@ -11,7 +11,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 http.setResponseCallback(http.expectedStatuses(200, 201, 404, 409));
 
 const unexpectedResponses = new Rate('unexpected_responses');
-const jsonParams = { headers: { 'Content-Type': 'application/json' } };
 
 export const options = {
   scenarios: {
@@ -35,12 +34,20 @@ function isoDate(ms) {
 }
 
 export function setup() {
+  const createProductParams = {
+    headers: { 'Content-Type': 'application/json' },
+    tags: { name: 'setup create product' },
+  };
+  const createPriceParams = {
+    headers: { 'Content-Type': 'application/json' },
+    tags: { name: 'setup create price' },
+  };
   const productIds = [];
   for (let i = 0; i < SETUP_PRODUCTS; i++) {
     const created = http.post(
       `${BASE_URL}/products`,
       JSON.stringify({ name: `k6 product ${i}`, description: 'created by load test setup' }),
-      jsonParams,
+      createProductParams,
     );
     const id = created.json('id');
     productIds.push(id);
@@ -50,19 +57,30 @@ export function setup() {
       http.post(
         `${BASE_URL}/products/${id}/prices`,
         JSON.stringify({ value: 10 + i + p, initDate: isoDate(init), endDate: isoDate(end) }),
-        jsonParams,
+        createPriceParams,
       );
       init = end + DAY_MS;
     }
   }
+  const warmupParams = { tags: { name: 'warm-up lookup' } };
   for (const id of productIds) {
-    http.get(`${BASE_URL}/products/${id}/prices?date=2025-06-15`);
+    http.get(`${BASE_URL}/products/${id}/prices?date=2025-06-15`, warmupParams);
   }
   for (let seedId = 1; seedId <= SEED_PRODUCTS; seedId++) {
-    http.get(`${BASE_URL}/products/${seedId}/prices?date=2024-06-15`);
+    http.get(`${BASE_URL}/products/${seedId}/prices?date=2024-06-15`, warmupParams);
   }
   return { productIds };
 }
+
+const lookupParams = { tags: { name: 'GET price in force' } };
+const overlapParams = {
+  headers: { 'Content-Type': 'application/json' },
+  tags: { name: 'POST overlapping price' },
+};
+const insertParams = {
+  headers: { 'Content-Type': 'application/json' },
+  tags: { name: 'POST free-range price' },
+};
 
 export default function (data) {
   if (Math.random() < 0.9) {
@@ -72,7 +90,7 @@ export default function (data) {
     const from = Date.UTC(2019, 0, 1);
     const span = Date.UTC(2028, 11, 31) - from;
     const date = isoDate(from + Math.floor(Math.random() * span));
-    const res = http.get(`${BASE_URL}/products/${productId}/prices?date=${date}`);
+    const res = http.get(`${BASE_URL}/products/${productId}/prices?date=${date}`, lookupParams);
     const ok = check(res, {
       'price lookup answers 200 or 404': (r) => r.status === 200 || r.status === 404,
     });
@@ -82,7 +100,7 @@ export default function (data) {
     const res = http.post(
       `${BASE_URL}/products/${productId}/prices`,
       JSON.stringify({ value: 1, initDate: '2025-02-01', endDate: '2025-02-10' }),
-      jsonParams,
+      overlapParams,
     );
     const ok = check(res, {
       'deliberate overlap answers 409': (r) => r.status === 409,
@@ -95,7 +113,7 @@ export default function (data) {
     const res = http.post(
       `${BASE_URL}/products/${productId}/prices`,
       JSON.stringify({ value: 5, initDate: isoDate(init), endDate: isoDate(init + DAY_MS) }),
-      jsonParams,
+      insertParams,
     );
     const ok = check(res, {
       'free-range insert answers 201': (r) => r.status === 201,

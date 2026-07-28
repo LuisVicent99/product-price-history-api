@@ -1,6 +1,7 @@
 package com.product.pricing.infrastructure.persistence;
 
 import com.product.pricing.domain.PriceRepository;
+import com.product.pricing.domain.error.InvalidRequestException;
 import com.product.pricing.domain.error.OverlappingPriceException;
 import com.product.pricing.domain.error.ProductNotFoundException;
 import com.product.pricing.domain.model.DateInterval;
@@ -23,6 +24,7 @@ public class PgPriceRepository implements PriceRepository {
     private static final String SQLSTATE_EXCLUSION_VIOLATION = "23P01";
     private static final String SQLSTATE_FOREIGN_KEY_VIOLATION = "23503";
     private static final String SQLSTATE_DEADLOCK_DETECTED = "40P01";
+    private static final List<String> SQLSTATE_INVALID_DATA = List.of("23502", "23514", "22001");
 
     private static final String INSERT =
         "INSERT INTO price (product_id, amount, currency, init_date, end_date) "
@@ -79,6 +81,10 @@ public class PgPriceRepository implements PriceRepository {
             }
             if (SQLSTATE_FOREIGN_KEY_VIOLATION.equals(pgException.getSqlState())) {
                 return new ProductNotFoundException(productId);
+            }
+            if (SQLSTATE_INVALID_DATA.contains(pgException.getSqlState())) {
+                return new InvalidRequestException(
+                    "price data rejected by database constraints: " + pgException.getErrorMessage());
             }
         }
         return error;

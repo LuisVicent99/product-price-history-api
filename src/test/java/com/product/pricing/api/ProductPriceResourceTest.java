@@ -199,4 +199,128 @@ class ProductPriceResourceTest {
             .body("code", equalTo("INVALID_DATE_FORMAT"))
             .body("detail", containsString("ISO-8601"));
     }
+
+    private static void assertProductValidationError(Map<String, Object> body, String failingField) {
+        given()
+            .contentType("application/json")
+            .body(body)
+            .post("/products")
+            .then()
+            .statusCode(400)
+            .contentType("application/problem+json")
+            .body("code", equalTo("VALIDATION_ERROR"))
+            .body("detail", containsString(failingField));
+    }
+
+    private static void assertPriceValidationError(Map<String, Object> body, String failingField) {
+        long productId = createProduct();
+        given()
+            .contentType("application/json")
+            .body(body)
+            .post("/products/" + productId + "/prices")
+            .then()
+            .statusCode(400)
+            .contentType("application/problem+json")
+            .body("code", equalTo("VALIDATION_ERROR"))
+            .body("detail", containsString(failingField));
+    }
+
+    private static Map<String, Object> productBody(String name, String description) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("name", name);
+        body.put("description", description);
+        return body;
+    }
+
+    @Test
+    void createProductWithNullNameReturns400() {
+        assertProductValidationError(productBody(null, "valid description"), "name");
+    }
+
+    @Test
+    void createProductWithEmptyNameReturns400() {
+        assertProductValidationError(productBody("", "valid description"), "name");
+    }
+
+    @Test
+    void createProductWithBlankNameReturns400() {
+        assertProductValidationError(productBody("   ", "valid description"), "name");
+    }
+
+    @Test
+    void createProductWithTooLongNameReturns400() {
+        assertProductValidationError(productBody("x".repeat(151), "valid description"), "name");
+    }
+
+    @Test
+    void createProductWithTooLongDescriptionReturns400() {
+        assertProductValidationError(productBody("Valid name", "x".repeat(501)), "description");
+    }
+
+    @Test
+    void addPriceWithNullValueReturns400() {
+        assertPriceValidationError(priceBody(null, "2026-01-01", "2026-01-31"), "value");
+    }
+
+    @Test
+    void addPriceWithNegativeValueReturns400() {
+        assertPriceValidationError(priceBody("-5.00", "2026-01-01", "2026-01-31"), "value");
+    }
+
+    @Test
+    void addPriceWithMalformedCurrencyReturns400() {
+        Map<String, Object> body = priceBody("10.00", "2026-01-01", "2026-01-31");
+        body.put("currency", "EURO");
+        assertPriceValidationError(body, "currency");
+    }
+
+    @Test
+    void createProductWithoutBodyReturns400() {
+        given()
+            .contentType("application/json")
+            .post("/products")
+            .then()
+            .statusCode(400)
+            .contentType("application/problem+json")
+            .body("code", equalTo("VALIDATION_ERROR"))
+            .body("detail", containsString("body"));
+    }
+
+    @Test
+    void addPriceWithoutBodyReturns400() {
+        long productId = createProduct();
+        given()
+            .contentType("application/json")
+            .post("/products/" + productId + "/prices")
+            .then()
+            .statusCode(400)
+            .contentType("application/problem+json")
+            .body("code", equalTo("VALIDATION_ERROR"))
+            .body("detail", containsString("body"));
+    }
+
+    @Test
+    void createProductWithNonObjectJsonBodyReturns400() {
+        given()
+            .contentType("application/json")
+            .body("[1, 2, 3]")
+            .post("/products")
+            .then()
+            .statusCode(400)
+            .contentType("application/problem+json")
+            .body("code", equalTo("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void addPriceWithNonObjectJsonBodyReturns400() {
+        long productId = createProduct();
+        given()
+            .contentType("application/json")
+            .body("\"just a string\"")
+            .post("/products/" + productId + "/prices")
+            .then()
+            .statusCode(400)
+            .contentType("application/problem+json")
+            .body("code", equalTo("VALIDATION_ERROR"));
+    }
 }

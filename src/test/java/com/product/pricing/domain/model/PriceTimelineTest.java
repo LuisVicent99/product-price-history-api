@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.List;
 import java.util.Optional;
 
@@ -62,7 +63,7 @@ class PriceTimelineTest {
     @Test
     void openEndedPriceMatchesFarFutureDates() {
         PriceTimeline timeline = new PriceTimeline(List.of(price(1, date(1, 10), null)));
-        assertEquals(1L, timeline.findAt(LocalDate.of(2099, 12, 31)).orElseThrow().id());
+        assertEquals(1L, timeline.findAt(LocalDate.of(2099, Month.DECEMBER, 31)).orElseThrow().id());
     }
 
     @Test
@@ -86,8 +87,9 @@ class PriceTimelineTest {
     @Test
     void pricesListIsImmutable() {
         PriceTimeline timeline = new PriceTimeline(List.of(price(1, date(1, 1), null)));
-        assertThrows(UnsupportedOperationException.class,
-            () -> timeline.prices().add(price(2, date(2, 1), null)));
+        List<Price> prices = timeline.prices();
+        Price extra = price(2, date(2, 1), null);
+        assertThrows(UnsupportedOperationException.class, () -> prices.add(extra));
     }
 
     @Test

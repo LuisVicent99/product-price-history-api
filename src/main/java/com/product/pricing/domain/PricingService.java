@@ -1,5 +1,6 @@
 package com.product.pricing.domain;
 
+import com.product.pricing.domain.error.InvalidRequestException;
 import com.product.pricing.domain.error.PriceNotFoundException;
 import com.product.pricing.domain.error.ProductNotFoundException;
 import com.product.pricing.domain.model.DateInterval;
@@ -28,13 +29,32 @@ public class PricingService {
     }
 
     public CompletionStage<Product> createProduct(String name, String description) {
+        if (name == null || name.isBlank()) {
+            throw new InvalidRequestException("name is required and must not be blank");
+        }
+        if (name.length() > 150) {
+            throw new InvalidRequestException("name must be at most 150 characters, got " + name.length());
+        }
+        if (description != null && description.length() > 500) {
+            throw new InvalidRequestException(
+                "description must be at most 500 characters, got " + description.length());
+        }
         return products.insert(name, description);
     }
 
     public CompletionStage<Price> addPrice(long productId, BigDecimal amount, String currency,
                                            LocalDate initDate, LocalDate endDate) {
+        if (amount == null) {
+            throw new InvalidRequestException("value is required");
+        }
+        if (amount.signum() < 0) {
+            throw new InvalidRequestException("value must not be negative, got " + amount);
+        }
+        if (currency != null && !currency.matches("[A-Za-z]{3}")) {
+            throw new InvalidRequestException("currency must be exactly 3 letters, got '" + currency + "'");
+        }
         DateInterval validity = new DateInterval(initDate, endDate);
-        String effectiveCurrency = currency == null || currency.isBlank() ? DEFAULT_CURRENCY : currency;
+        String effectiveCurrency = currency == null ? DEFAULT_CURRENCY : currency;
         return prices.insert(productId, amount, effectiveCurrency, validity)
             .thenApply(inserted -> {
                 timelines.invalidate(productId);
