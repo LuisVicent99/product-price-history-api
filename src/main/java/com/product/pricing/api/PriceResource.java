@@ -6,6 +6,7 @@ import com.product.pricing.api.dto.PriceRequest;
 import com.product.pricing.api.dto.PriceView;
 import com.product.pricing.api.error.InvalidDateFormatException;
 import com.product.pricing.domain.PricingService;
+import com.product.pricing.domain.error.InvalidRequestException;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
@@ -34,6 +35,9 @@ public class PriceResource {
 
     @POST
     public CompletionStage<Response> add(@PathParam("productId") long productId, PriceRequest request) {
+        if (request == null) {
+            throw new InvalidRequestException("request body is required");
+        }
         return service.addPrice(productId, request.value(), request.currency(),
                 request.initDate(), request.endDate())
             .thenApply(price -> Response

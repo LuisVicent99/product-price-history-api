@@ -39,7 +39,7 @@ public class PriceTimelineCache implements PriceTimelineProvider {
     }
 
     private CompletionStage<PriceTimeline> emptyTimelineIfProductExists(long productId) {
-        return products.exists(productId).thenCompose(exists -> exists
+        return products.exists(productId).thenCompose(exists -> Boolean.TRUE.equals(exists)
             ? CompletableFuture.completedStage(new PriceTimeline(List.of()))
             : CompletableFuture.failedStage(new ProductNotFoundException(productId)));
     }
