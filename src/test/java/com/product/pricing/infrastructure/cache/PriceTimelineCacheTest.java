@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -72,7 +73,7 @@ class PriceTimelineCacheTest {
 
     private static Price price(long productId) {
         return new Price(1L, productId, new BigDecimal("10.00"), "EUR",
-            new DateInterval(LocalDate.of(2026, 1, 1), null));
+            new DateInterval(LocalDate.of(2026, Month.JANUARY, 1), null));
     }
 
     private static PriceTimeline await(CompletionStage<PriceTimeline> stage) throws Exception {
@@ -108,7 +109,7 @@ class PriceTimelineCacheTest {
     }
 
     @Test
-    void missingProductFailsAndLeavesNoCacheEntry() throws Exception {
+    void missingProductFailsAndLeavesNoCacheEntry() {
         FakeProductRepository products = new FakeProductRepository();
         FakePriceRepository prices = new FakePriceRepository();
         PriceTimelineCache cache = new PriceTimelineCache(products, prices);

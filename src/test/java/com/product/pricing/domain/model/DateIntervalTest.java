@@ -4,6 +4,7 @@ import com.product.pricing.domain.error.InvalidDateRangeException;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.Month;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -11,15 +12,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DateIntervalTest {
 
-    private static final LocalDate JAN_1 = LocalDate.of(2026, 1, 1);
-    private static final LocalDate JAN_10 = LocalDate.of(2026, 1, 10);
-    private static final LocalDate JAN_11 = LocalDate.of(2026, 1, 11);
-    private static final LocalDate JAN_20 = LocalDate.of(2026, 1, 20);
+    private static final LocalDate JAN_1 = LocalDate.of(2026, Month.JANUARY, 1);
+    private static final LocalDate JAN_10 = LocalDate.of(2026, Month.JANUARY, 10);
+    private static final LocalDate JAN_11 = LocalDate.of(2026, Month.JANUARY, 11);
+    private static final LocalDate JAN_20 = LocalDate.of(2026, Month.JANUARY, 20);
 
     @Test
     void allowsNullEndDateAsOpenEnded() {
         DateInterval interval = new DateInterval(JAN_1, null);
-        assertTrue(interval.contains(LocalDate.of(2099, 12, 31)));
+        assertTrue(interval.contains(LocalDate.of(2099, Month.DECEMBER, 31)));
     }
 
     @Test

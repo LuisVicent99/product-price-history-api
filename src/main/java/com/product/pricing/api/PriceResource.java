@@ -57,7 +57,7 @@ public class PriceResource {
     private static LocalDate parseIsoDate(String raw) {
         try {
             return LocalDate.parse(raw);
-        } catch (DateTimeParseException e) {
+        } catch (DateTimeParseException _) {
             throw new InvalidDateFormatException(raw);
         }
     }
