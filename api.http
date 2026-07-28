@@ -1,0 +1,64 @@
+@host = http://localhost:8080
+
+### Create product
+POST {{host}}/products
+Content-Type: application/json
+
+{
+  "name": "Smart TV 55",
+  "description": "OLED 4K"
+}
+
+### Add price with closed validity
+POST {{host}}/products/1/prices
+Content-Type: application/json
+
+{
+  "value": 499.90,
+  "initDate": "2026-01-01",
+  "endDate": "2026-06-30"
+}
+
+### Add open-ended price starting the day after
+POST {{host}}/products/1/prices
+Content-Type: application/json
+
+{
+  "value": 459.00,
+  "initDate": "2026-07-01"
+}
+
+### Get price in force at a date
+GET {{host}}/products/1/prices?date=2026-03-15
+
+### Get full price history
+GET {{host}}/products/1/prices
+
+### 400 invalid date range (initDate equals endDate)
+POST {{host}}/products/1/prices
+Content-Type: application/json
+
+{
+  "value": 10.00,
+  "initDate": "2027-05-10",
+  "endDate": "2027-05-10"
+}
+
+### 400 malformed date query param
+GET {{host}}/products/1/prices?date=15-03-2026
+
+### 404 PRODUCT_NOT_FOUND
+GET {{host}}/products/424242/prices?date=2026-03-15
+
+### 404 PRICE_NOT_FOUND
+GET {{host}}/products/1/prices?date=2019-01-01
+
+### 409 PRICE_OVERLAP (shares the inclusive end day 2026-06-30)
+POST {{host}}/products/1/prices
+Content-Type: application/json
+
+{
+  "value": 479.00,
+  "initDate": "2026-06-30",
+  "endDate": "2026-12-31"
+}
